@@ -1,4 +1,5 @@
 
+BEGIN;
 
 WITH bounds AS (
     SELECT last_watermark - interval '1 day' AS lo,   -- перекрытие на поздние коммиты
@@ -13,8 +14,13 @@ SELECT
     dp.patient_pseudo_id
 FROM mart.dim_patient dp;
 WHERE dp.created_at > (SELECT lo FROM bounds) AND dp.created_at <= (SELECT hi FROM bounds)
- 
-CREATE INDEX IF NOT EXISTS idx_patient_order_map_pseudo ON mart.patient_order_map (patient_pseudo_id);
- 
+
+
+UPDATE mart.etl_load_log
+SET last_watermark = now(),     -- то же значение, что hi: одна транзакция
+    updated_at     = now()
+WHERE target_table = 'mart.patient_order_map';
 
  
+
+ COMMIT;

@@ -62,6 +62,6 @@ SET order_ids = ARRAY(
 UPDATE mart.etl_load_log
 SET last_watermark = now(),     -- то же значение, что hi: одна транзакция
     updated_at     = now()
-WHERE target_table = 'dim_patient';
+WHERE target_table = 'mart.dim_patient';
 
 COMMIT;
