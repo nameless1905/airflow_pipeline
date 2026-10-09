@@ -5,11 +5,11 @@ WITH bounds AS (
     SELECT last_watermark - interval '1 day' AS lo,   -- перекрытие на поздние коммиты
            now()                             AS hi
     FROM mart.etl_load_log
-    WHERE target_table = 'mart.fact_meashurement_raw'
+    WHERE target_table = 'mart.fact_measurement_raw'
 )
 
 
-INSERT INTO mart.fact_measurement_raw (
+INSERT INTO mart.fact_measurement_raw  AS f(
     measurecontext_id, orderline_id, order_id, patient_pseudo_id,
     measureparameter_id,  assay_id , assay_name, assay_standardcode, parametr_name,value, unit,ref_min, ref_max, flag,           -- 'L'/'H'/NULL, из lessflag/moreflag
     resultrefcharstatus_raw,       
@@ -51,7 +51,8 @@ SELECT
     mth.name,
     mth.analyser_id,
     an.name,  -- TODO: связать конкретный лот (reagentlots), а не только reagent_id — нужна доп. логика выбора активного лота на дату
-    ol.completiontimestamp
+    coalesce(s.samplingtimestamp, ms.samplingtimestamp,
+             s.creationtimestamp, o.registrationtimestamp)
 FROM public.measurecontext mc
 JOIN public.orderline ol       ON ol.id = mc.measureorderline_id
 

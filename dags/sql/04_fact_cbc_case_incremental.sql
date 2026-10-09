@@ -22,8 +22,7 @@ agg AS (                                                 -- 2) собираем 
         fr.collected_at,
         fr.assay_name,
         fr.assay_standardcode,
-        mode() WITHIN GROUP (ORDER BY fr.analyser_name) AS analyzer_model,
-        mode() WITHIN GROUP (ORDER BY fr.method_name)   AS method_name,
+        
         jsonb_object_agg(
             fr.parametr_name,
             jsonb_build_object(
@@ -38,14 +37,14 @@ agg AS (                                                 -- 2) собираем 
     FROM mart.fact_measurement_raw fr
     JOIN touched t USING (orderline_id)                  -- все измерения изменившихся строк
     WHERE fr.parametr_name IS NOT NULL
-      -- AND fr.assay_standardcode IN (...)              -- только исследования ОАК
+      
     GROUP BY fr.orderline_id, fr.order_id, fr.patient_pseudo_id, fr.collected_at,
              fr.assay_name, fr.assay_standardcode
 )
 INSERT INTO mart.fact_cbc_case AS c (
     case_id, order_id, orderline_id, patient_pseudo_id, collected_at,
-    age_years, sex, analyzer_model, assay_name, assay_standardcode,
-    method_name, indices_json
+    age_years, sex, assay_name, assay_standardcode,
+     indices_json
 )
 SELECT
     a.orderline_id,                                      -- case_id = orderline_id
@@ -59,10 +58,10 @@ SELECT
             THEN date_part('year', age(a.collected_at, dp.birthdate))::int
     END,
     dp.sex_normalized,
-    a.analyzer_model,
+   
     a.assay_name,
     a.assay_standardcode,
-    a.method_name,
+    
     a.indices_json
 FROM agg a
 LEFT JOIN mart.dim_patient dp ON dp.patient_pseudo_id = a.patient_pseudo_id
@@ -71,14 +70,15 @@ SET patient_pseudo_id = EXCLUDED.patient_pseudo_id,
     collected_at      = EXCLUDED.collected_at,
     age_years         = EXCLUDED.age_years,
     sex               = EXCLUDED.sex,
-    analyzer_model    = EXCLUDED.analyzer_model,
-    method_name       = EXCLUDED.method_name,
-    indices_json      = EXCLUDED.indices_json
+    
+    
+    indices_json      = EXCLUDED.indices_json,
+    updated_at = now()
 WHERE (c.patient_pseudo_id, c.collected_at, c.age_years, c.sex,
-       c.analyzer_model, c.method_name, c.indices_json)
+        c.indices_json)
       IS DISTINCT FROM
       (EXCLUDED.patient_pseudo_id, EXCLUDED.collected_at, EXCLUDED.age_years, EXCLUDED.sex,
-       EXCLUDED.analyzer_model, EXCLUDED.method_name, EXCLUDED.indices_json);
+       EXCLUDED.indices_json);
 
 
     UPDATE mart.etl_load_log

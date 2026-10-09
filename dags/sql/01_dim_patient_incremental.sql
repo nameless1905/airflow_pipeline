@@ -56,8 +56,11 @@ SET order_ids = ARRAY(
     orders_matched_count = cardinality(ARRAY(
         SELECT DISTINCT unnest(d.order_ids || EXCLUDED.order_ids))),
     needs_manual_review = cardinality(ARRAY(
-        SELECT DISTINCT unnest(d.order_ids || EXCLUDED.order_ids))) > 15;
-    -- patient_pseudo_id, birthdate, sex_normalized у существующего пациента не трогаем
+        SELECT DISTINCT unnest(d.order_ids || EXCLUDED.order_ids))) > 15,
+        updated_at = now()
+        WHERE NOT (EXCLUDED.order_ids <@ d.order_ids);
+        
+
 
 UPDATE mart.etl_load_log
 SET last_watermark = now(),     -- то же значение, что hi: одна транзакция
