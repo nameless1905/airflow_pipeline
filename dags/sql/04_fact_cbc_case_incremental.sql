@@ -41,7 +41,7 @@ agg AS (                                                 -- 2) собираем 
     GROUP BY fr.orderline_id, fr.order_id, fr.patient_pseudo_id, fr.collected_at,
              fr.assay_name, fr.assay_standardcode
 )
-INSERT INTO mart.fact_cbc_case AS c (
+INSERT INTO mart.fact_cbc_case_2026 AS c (
     case_id, order_id, orderline_id, patient_pseudo_id, collected_at,
     age_years, sex, assay_name, assay_standardcode,
      indices_json

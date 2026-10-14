@@ -32,11 +32,7 @@ with DAG(
     template_searchpath=["/opt/airflow/dags/sql"],
     tags=["mart", "cbc"],
 ) as dag:
-    init_log = SQLExecuteQueryOperator(
-        task_id="init_etl_log",
-        conn_id=CONN_ID,
-        sql="00_init_etl_log.sql",
-    )
+   
 
     dim_patient = SQLExecuteQueryOperator(
         task_id="dim_patient",
@@ -62,17 +58,13 @@ with DAG(
         sql="04_fact_cbc_case_incremental.sql",
     )
 
-    fact_patient_history = SQLExecuteQueryOperator(
-        task_id="fact_patient_history",
-        conn_id=CONN_ID,
-        sql="05_fact_patient_history_incremental.sql",
-    )
+    
 
     (
-        init_log
-        >> dim_patient
+        
+        dim_patient
         >> patient_order_map
         >> fact_measurement_raw
         >> fact_cbc_case
-        >> fact_patient_history
+        
     )

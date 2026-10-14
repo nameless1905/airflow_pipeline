@@ -51,8 +51,7 @@ SELECT
     mth.name,
     mth.analyser_id,
     an.name,  -- TODO: связать конкретный лот (reagentlots), а не только reagent_id — нужна доп. логика выбора активного лота на дату
-    coalesce(s.samplingtimestamp, ms.samplingtimestamp,
-             s.creationtimestamp, o.registrationtimestamp)
+   coalesce(o.registrationtimestamp, o.creationtimestamp) AS collected_at
 FROM public.measurecontext mc
 JOIN public.orderline ol       ON ol.id = mc.measureorderline_id
 
@@ -61,10 +60,14 @@ left join mart.patient_order_map pat  on pat.order_id = o.id
 
 JOIN public.assay a                ON a.id = ol.assay_id
 LEFT JOIN public.measureparameter dmp ON dmp.id = mc.measureparameter_id
-LEFT JOIN public.measuringunits munit ON dmp.measuringunit_id = munit.id
-LEFT JOIN  public.method mth ON mth.id = mc.method_id
+LEFT JOIN public.measuringunits munit
+       ON munit.id = coalesce(mc.measuringunit_id, dmp.measuringunit_id)
+       LEFT JOIN  public.method mth ON mth.id = mc.method_id
 left join public.analyser an on an.id = mth.analyser_id
 WHERE mc.deleted IS NOT TRUE  
+  AND ol.deleted = false
+  AND o.deleted  = false
+
 
  AND coalesce(ol.techvalidated_at, ol.completiontimestamp) >  (SELECT lo FROM bounds)
   AND coalesce(ol.techvalidated_at, ol.completiontimestamp) <= (SELECT hi FROM bounds)
@@ -82,11 +85,15 @@ SET patient_pseudo_id       = EXCLUDED.patient_pseudo_id,
     method_name             = EXCLUDED.method_name,
     analyser_id             = EXCLUDED.analyser_id,
     analyser_name           = EXCLUDED.analyser_name,
+      collected_at            = EXCLUDED.collected_at,
     updated_at = now()
-WHERE (f.patient_pseudo_id, f.value, f.flag, f.unit, f.ref_min, f.ref_max, f.method_id)
+WHERE (f.patient_pseudo_id, f.value, f.unit, f.ref_min, f.ref_max, f.flag,
+       f.resultrefcharstatus_raw, f.was_entered_manually,
+       f.method_id, f.method_name, f.analyser_id, f.analyser_name, f.collected_at)
       IS DISTINCT FROM
-      (EXCLUDED.patient_pseudo_id, EXCLUDED.value, EXCLUDED.flag, EXCLUDED.unit,
-       EXCLUDED.ref_min, EXCLUDED.ref_max, EXCLUDED.method_id);   -- не переписываем неизменившееся
+      (EXCLUDED.patient_pseudo_id, EXCLUDED.value, EXCLUDED.unit, EXCLUDED.ref_min, EXCLUDED.ref_max, EXCLUDED.flag,
+       EXCLUDED.resultrefcharstatus_raw, EXCLUDED.was_entered_manually,
+       EXCLUDED.method_id, EXCLUDED.method_name, EXCLUDED.analyser_id, EXCLUDED.analyser_name, EXCLUDED.collected_at); -- не переписываем неизменившееся
 
 
 UPDATE mart.etl_load_log
